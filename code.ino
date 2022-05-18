@@ -63,7 +63,7 @@ void loop() {
     pumpTwoOff();
   }
 
-  if (inWateringCycle && digitalRead(2) == HIGH && currentMillis > startPumpTwoMillis) {
+  if (inWateringCycle && currentMillis > startPumpTwoMillis && digitalRead(2) == HIGH) {
     drainTank();
     inWateringCycle = false;
   }
