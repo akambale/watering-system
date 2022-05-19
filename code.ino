@@ -16,7 +16,7 @@
 #include "thingProperties.h"
 
 // approx seconds to fill the tank to perfect height
-const int fullFillTime = 130;
+const int fullFillTime = 120;
 const int oneSecond = 1000;
 const int oneMinute = oneSecond * 60;
 const unsigned long twentyMinutes = oneMinute * 20;
@@ -101,6 +101,7 @@ void turnOff(bool pump) {
 void stopAllPumps() {
   turnOff(fillPump);
   turnOff(drainPump);
+  inWateringCycle = false;
 }
 
 /*************** PUMP STATUS ***************/
