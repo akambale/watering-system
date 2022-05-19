@@ -11,19 +11,39 @@
   These functions are generated with the Thing and added at the end of this sketch.
 */
 
+/*********** GLOBALS & CONSTANTS ***********/
+
 #include "thingProperties.h"
 
+// approx seconds to fill the tank to perfect height
+const int fullFillTime = 130;
+const int oneSecond = 1000;
+const int oneMinute = oneSecond * 60;
+const unsigned long twentyMinutes = oneMinute * 20;
+
+const bool fillPump = true;
+const bool drainPump = false;
+
+unsigned long currentMillis = 0; 
+unsigned long stopFillPumpMillis = 0;
+unsigned long stopDrainPumpMillis = 0;
+unsigned long startPumpTwoMillis = 0;
+
+bool inWateringCycle = false;
+
+/****************** SETUP ******************/
+
 void setup() {
+  pinMode(1, OUTPUT);
+  pinMode(2, OUTPUT);
+  
+  turnOff(fillPump);
+  turnOff(drainPump);
+
   // Initialize serial and wait for port to open:
   Serial.begin(9600);
   // This delay gives the chance to wait for a Serial Monitor without blocking if none is found
   delay(1500);
-
-  pinMode(1, OUTPUT);
-  pinMode(2, OUTPUT);
-  
-  pumpOneOff();
-  pumpTwoOff();
 
   // Defined in thingProperties.h
   initProperties();
@@ -42,92 +62,94 @@ void setup() {
   ArduinoCloud.printDebugInfo();
 }
 
-const unsigned long twentyMinutes = 1000 * 60 * 20;
 
-unsigned long currentMillis = 0; 
-unsigned long stopPumpOneMillis = 0;
-unsigned long stopPumpTwoMillis = 0;
-unsigned long startPumpTwoMillis = 0;
-bool inWateringCycle = false;
+/****************** LOOP ******************/
 
 void loop() {
   ArduinoCloud.update();
 
   currentMillis = millis();
 
-  if (digitalRead(1) == LOW && currentMillis > stopPumpOneMillis) {
-    pumpOneOff();
+  if (isOn(fillPump) && currentMillis > stopFillPumpMillis) {
+    turnOff(fillPump);
   }
 
-  if (digitalRead(2) == LOW && currentMillis > stopPumpTwoMillis) {
-    pumpTwoOff();
+  if (isOn(drainPump)  && currentMillis > stopDrainPumpMillis) {
+    turnOff(drainPump);
   }
 
-  if (inWateringCycle && currentMillis > startPumpTwoMillis && digitalRead(2) == HIGH) {
+  // this odd order was chosen to figure out what is
+  // most likely to trigger short circuit evaluation
+  if (inWateringCycle && currentMillis > startPumpTwoMillis && isOff(drainPump)) {
     drainTank();
     inWateringCycle = false;
   }
 }
 
-void pumpOneOn() {
-  digitalWrite(1, LOW);
+/*************** PUMP CONTROL ***************/
+
+void turnOn(bool pump) {
+  const int pumpNum = pump ? 1 : 2;
+  digitalWrite(pumpNum, LOW);
 }
 
-void pumpOneOff() {
-  digitalWrite(1, HIGH);
+void turnOff(bool pump) {
+  const int pumpNum = pump ? 1 : 2;
+  digitalWrite(pumpNum, HIGH);
 }
 
-void pumpTwoOn() {
-  digitalWrite(2, LOW);
+void stopAllPumps() {
+  turnOff(fillPump);
+  turnOff(drainPump);
 }
 
-void pumpTwoOff() {
-  digitalWrite(2, HIGH);
+/*************** PUMP STATUS ***************/
+
+bool isOn(bool pump) {
+  const int pumpNum = pump ? 1 : 2;
+  return digitalRead(pumpNum) == LOW;
 }
+
+bool isOff(bool pump) {
+  const int pumpNum = pump ? 1 : 2;
+  return digitalRead(pumpNum) == HIGH;
+}
+
+/*************** OPERATIONS ***************/
 
 void fillTank(int timeInSeconds) {
-  pumpOneOn();
-  stopPumpOneMillis = currentMillis + timeInSeconds * 1000;
+  turnOn(fillPump);
+  stopFillPumpMillis = currentMillis + timeInSeconds * oneSecond;
 }
 
 void drainTank() {
-  pumpTwoOn();
-  stopPumpTwoMillis = currentMillis + 5000;
+  turnOn(drainPump);
+  stopDrainPumpMillis = currentMillis + oneSecond * 60;
 }
 
-/*
-  Since FillByTime is READ_WRITE variable, onFillByTimeChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
+/*************** EVENT HANDLERS ***************/
+
 void onFillByTimeChange()  {
   if (!fillByTime) return;
   fillTank(fillTimeInSeconds);
 }
 
-/*
-  Since FullWateringCycle is READ_WRITE variable, onFullWateringCycleChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
 void onFullWateringCycleChange()  {
   if (!fullWateringCycle) return;
-  fillTank(110); // approx seconds to fill the tank to perfect height
-  startPumpTwoMillis = currentMillis + twentyMinutes;
+  fillTank(fullFillTime); 
+  startPumpTwoMillis = currentMillis + twentyMinutes + fullFillTime;
   inWateringCycle = true;
 }
 
-/*
-  Since Drain is READ_WRITE variable, onDrainChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
 void onDrainChange()  {
   if (!drain) return;
   drainTank();
 }
 
-/*
-  Since FillTimeInSeconds is READ_WRITE variable, onFillTimeInSecondsChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
+void onKillSwitchChange()  {
+  stopAllPumps();
+}
+
 void onFillTimeInSecondsChange()  {
   // Add your code here to act upon FillTimeInSeconds change
 }
