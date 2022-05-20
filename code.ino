@@ -2,9 +2,10 @@
   The following variables are automatically generated and updated when changes are made to the Thing
 
   int fillTimeInSeconds;
-  bool drain;
-  bool fillByTime;
-  bool fullWateringCycle;
+  int drainTimeInSeconds;
+  bool triggerDrain;
+  bool triggerFill;
+  bool triggerWateringCycle;
 
   Variables which are marked as READ/WRITE in the Cloud Thing will also have functions
   which are called when their values are changed from the Dashboard.
@@ -15,8 +16,6 @@
 
 #include "thingProperties.h"
 
-// approx seconds to fill the tank to perfect height
-const int fullFillTime = 120;
 const int oneSecond = 1000;
 const int oneMinute = oneSecond * 60;
 const unsigned long twentyMinutes = oneMinute * 20;
@@ -89,13 +88,37 @@ void loop() {
 /*************** PUMP CONTROL ***************/
 
 void turnOn(bool pump) {
-  const int pumpNum = pump ? 1 : 2;
-  digitalWrite(pumpNum, LOW);
+  digitalWrite(getPumpNum(pump), LOW);
 }
 
 void turnOff(bool pump) {
-  const int pumpNum = pump ? 1 : 2;
-  digitalWrite(pumpNum, HIGH);
+  digitalWrite(getPumpNum(pump), HIGH);
+}
+
+int getPumpNum(bool pump) {
+  return pump ? 1 : 2;
+}
+
+/*************** PUMP STATUS ***************/
+
+bool isOn(bool pump) {
+  return digitalRead(getPumpNum(pump)) == LOW;
+}
+
+bool isOff(bool pump) {
+  return digitalRead(getPumpNum(pump)) == HIGH;
+}
+
+/*************** OPERATIONS ***************/
+
+void fillTank() {
+  turnOn(fillPump);
+  stopFillPumpMillis = currentMillis + fillTimeInSeconds * oneSecond;
+}
+
+void drainTank() {
+  turnOn(drainPump);
+  stopDrainPumpMillis = currentMillis + drainTimeInSeconds * oneSecond;
 }
 
 void stopAllPumps() {
@@ -104,53 +127,43 @@ void stopAllPumps() {
   inWateringCycle = false;
 }
 
-/*************** PUMP STATUS ***************/
-
-bool isOn(bool pump) {
-  const int pumpNum = pump ? 1 : 2;
-  return digitalRead(pumpNum) == LOW;
+void fillByTime() {
+  fillTank();
 }
 
-bool isOff(bool pump) {
-  const int pumpNum = pump ? 1 : 2;
-  return digitalRead(pumpNum) == HIGH;
-}
-
-/*************** OPERATIONS ***************/
-
-void fillTank(int timeInSeconds) {
-  turnOn(fillPump);
-  stopFillPumpMillis = currentMillis + timeInSeconds * oneSecond;
-}
-
-void drainTank() {
-  turnOn(drainPump);
-  stopDrainPumpMillis = currentMillis + oneSecond * 60;
+void startFullWateringCycle() {
+  fillTank(); 
+  startPumpTwoMillis = currentMillis + twentyMinutes + fillTimeInSeconds;
+  inWateringCycle = true;
 }
 
 /*************** EVENT HANDLERS ***************/
 
-void onFillByTimeChange()  {
-  if (!fillByTime) return;
-  fillTank(fillTimeInSeconds);
+void onTriggerFillChange()  {
+  if (!triggerFill) return;
+  fillByTime();
 }
 
-void onFullWateringCycleChange()  {
-  if (!fullWateringCycle) return;
-  fillTank(fullFillTime); 
-  startPumpTwoMillis = currentMillis + twentyMinutes + fullFillTime;
-  inWateringCycle = true;
+void onTriggerWateringCycleChange()  {
+  if (!triggerWateringCycle) return;
+  startFullWateringCycle();
 }
 
-void onDrainChange()  {
-  if (!drain) return;
+void onTriggerDrainChange()  {
+  if (!triggerDrain) return;
   drainTank();
 }
 
-void onKillSwitchChange()  {
+void onFillTimeInSecondsChange()  {
+  // this variable event listener acts as a kill
+  // switch. This is to get around the 5 variable 
+  // limit for IoT Cloud free tier
   stopAllPumps();
 }
 
-void onFillTimeInSecondsChange()  {
-  // Add your code here to act upon FillTimeInSeconds change
+void onDrainTimeInSecondsChange()  {
+  // this variable event listener acts as a kill
+  // switch. This is to get around the 5 variable 
+  // limit for IoT Cloud free tier
+  stopAllPumps();
 }
