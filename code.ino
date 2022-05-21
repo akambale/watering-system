@@ -133,7 +133,7 @@ void fillByTime() {
 
 void startFullWateringCycle() {
   fillTank(); 
-  startPumpTwoMillis = currentMillis + twentyMinutes + fillTimeInSeconds;
+  startPumpTwoMillis = currentMillis + twentyMinutes + fillTimeInSeconds * oneSecond;
   inWateringCycle = true;
 }
 
