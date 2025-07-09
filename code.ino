@@ -20,8 +20,8 @@ const int oneSecond = 1000;
 const int oneMinute = oneSecond * 60;
 const unsigned long twentyMinutes = oneMinute * 20;
 
-const bool fillPump = true;
-const bool drainPump = false;
+const int fillPump = 1;
+const int drainPump = 2;
 
 unsigned long currentMillis = 0; 
 unsigned long stopFillPumpMillis = 0;
@@ -87,26 +87,22 @@ void loop() {
 
 /*************** PUMP CONTROL ***************/
 
-void turnOn(bool pump) {
-  digitalWrite(getPumpNum(pump), LOW);
+void turnOn(int pump) {
+  digitalWrite(pump, LOW);
 }
 
-void turnOff(bool pump) {
-  digitalWrite(getPumpNum(pump), HIGH);
-}
-
-int getPumpNum(bool pump) {
-  return pump ? 1 : 2;
+void turnOff(int pump) {
+  digitalWrite(pump, HIGH);
 }
 
 /*************** PUMP STATUS ***************/
 
-bool isOn(bool pump) {
-  return digitalRead(getPumpNum(pump)) == LOW;
+bool isOn(int pump) {
+  return digitalRead(pump) == LOW;
 }
 
-bool isOff(bool pump) {
-  return digitalRead(getPumpNum(pump)) == HIGH;
+bool isOff(int pump) {
+  return digitalRead(pump) == HIGH;
 }
 
 /*************** OPERATIONS ***************/
